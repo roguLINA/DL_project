@@ -40,19 +40,6 @@ def get_train_test_dataloaders(dataset_type='cifar10', root_data_folder='./data'
             transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010)),
         ]
     )
-#     train_transform = transforms.Compose(
-#         [
-#             transforms.RandomAffine(30, shear=30), 
-#             transforms.ToTensor(),
-#             transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))
-#         ]
-#     ) 
-#     test_transform = transforms.Compose(
-#         [
-#             transforms.ToTensor(),
-#             transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))
-#         ]
-#     )
     
     data_folder = os.path.join(root_data_folder, dataset_type)
     
