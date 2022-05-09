@@ -13,20 +13,19 @@ import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader
 
-from typing import List, Tuple, Dict, Any, Optional, Sequence, Callable
+from typing import (
+    List, Tuple, Dict, Any,
+    Optional, Sequence, Callable
+)
 
 def calculate_metrics(
     target: np.ndarray, y_pred: np.ndarray
-) -> Tuple[float, float, float, np.ndarray]:
-    """Calculate Accuracy, ROC_AUC, PR_AUC and confusion matrix.
+) -> float: 
+    """Calculate Accuracy.
 
     :param target: array with true labels
     :param y_pred: array with predictions
-    :return: tuple of
-        - Accuracy
-        - ROC_AUC
-        - PR_AUC
-        - Confusion matrix (TN, FP, FN, TP)
+    :return: accuracy
     """
     acc = (target == y_pred).mean()
 #     roc_auc = roc_auc_score(target, y_pred, multi_class='ovo')
@@ -50,19 +49,17 @@ def test_on_adv(
     params: Dict[str, Any],
     method: str = "fgsm",
     n_samples_ret: int = 5,
-    device: str = 'cpu'
-    #use_preds: bool = False,
-) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+    device: str = 'cpu',
+) -> Tuple[torch.tensor, torch.tensor, torch.tensor, torch.tensor, torch.tensor, torch.tensor, torch.tensor]:
     """Create adversarial inputs and test model on it.
 
     :param model: model that will be evaluated
-    :param loader: DataLoader from DatasetSlices
+    :param loader: DataLoader
     :param loss: loss function
     :param params: attack params, for FGSM the only parameter is 'eps', for PGD also 'n_steps'
     :param method: attack method, one of 'fgsm' and 'pgd'
     :param n_samples_ret: how many batches of samples should be returned
-    :param use_preds: if True, change of class if tracked between adversarial sample class and predicted class; if False,
-        change of class is tracked between adversarial sample class and ground truth class
+    :param device: device type (cuda or cpu)
     :returns: tuple of
         - y_true
         - y_pred adversarial
@@ -97,11 +94,8 @@ def test_on_adv(
         # prediction for original input
         logits = model(x_adv)
         _, preds = torch.max(logits, dim=1)
-#         preds_th = (preds.view(-1,) > 0.5).float().detach()
-#         targets.extend(preds_th if use_preds else labels.detach().data.numpy())
         targets = torch.cat([targets, labels])
         ori_preds = torch.cat([ori_preds, preds])
-#         loss_val = loss(logits.view(-1,), preds_th if use_preds else labels.float(),)
         loss_val = loss(logits, labels)
         loss_val.backward()
 
@@ -118,7 +112,6 @@ def test_on_adv(
             )
 
         logits_adv = model(x_adv)
-#         loss_adv = loss(logits_adv.view(-1,), preds_th if use_preds else labels.float(),)
         loss_adv = loss(logits_adv, labels)
         loss_adv.backward()
 
@@ -129,7 +122,6 @@ def test_on_adv(
             )
 
             logits_adv = model(x_adv)
-#             loss_adv = loss(logits_adv.view(-1,), preds_th if use_preds else labels.float(),)
             loss_adv = loss(logits_adv, labels)
             loss_adv.backward()
 
@@ -138,10 +130,8 @@ def test_on_adv(
         total_preds = torch.cat([total_preds, preds_adv])
 
         # accuracy
-        acc_val = (preds == labels).float().sum() / len(labels)
-        acc_adv = (preds_adv == labels).float().sum() / len(labels)
-#         acc_val = np.mean((preds == logits if use_preds else labels).numpy())
-#         acc_adv = np.mean((preds_adv == logits if use_preds else labels).numpy())
+        acc_val = (preds == labels).float().mean()
+        acc_adv = (preds_adv == labels).float().mean()
 
         loss_hist.append(loss_val.cpu().item())
         acc_hist.append(acc_val)
@@ -168,26 +158,21 @@ def test_on_adv(
 def test_robustness_simple(
     model,
     test_loader,
-    criterion,
-#     params={"eps": 1e-3},
+    loss,
     attack_params: Tuple[float, float, int],
     attack_type: str = "fgsm",
     n_samples_ret: int = 5,
     device: str = 'cpu',
-#     heteroscedastic: bool = False,
 ) -> pd.DataFrame:
     """Test model robustness with homogeneous noise or FGSM attack.
 
-    :param model: tne model to evaluate
-    :param df: the data
-    :param selected_feature: the features that the model uses
-    :param train_wells: indices of training wells, they will not be used for evaluation
-    :param test_wells: indices of testing wells, they will be used for evaluation
-    :param slice_len: length of slice that the model uses
-    :param path_to_saves: path to folder with scaler save
-    :param attack_type: one of 'noise' and 'adversarial'
+    :param model: the model to evaluate
+    :param test_loader: DataLoader
+    :param loss: loss function
     :param attack_params: lower bound, upper bound and number of points for noise sigma or attack power
-    :param heteroscedastic: if True, the noise sigma depends on the value of the input
+    :param attack_type: one of 'noise' and 'adversarial'
+    :param n_samples_ret: how many batches of samples should be returned
+    :param device: device type (cuda or cpu)
     :returns: DataFrame with results
     """
     results = dict()
@@ -195,22 +180,18 @@ def test_robustness_simple(
         y_true, y_pred, _, _, _, _, _ = test_on_adv(
             model,
             test_loader,
-            loss=criterion,
+            loss=loss,
             params={"eps": eps},
             method=attack_type,
             n_samples_ret=n_samples_ret,
             device=device
         )
         results[eps] = [calculate_metrics(y_true.detach().cpu().numpy(), y_pred.detach().cpu().numpy())]
-#         results[eps / 3] = calculate_metrics(y_true, y_pred)
 
     results_df = pd.DataFrame.from_dict(results, orient="index")
     results_df.set_axis(
         pd.Index(["Accuracy"], name="Metric"), axis=1, inplace=True
     )
-#     results_df.set_axis(
-#         pd.Index(["Accuracy", "ROC AUC", "PR AUC"], name="Metric"), axis=1, inplace=True
-#     )
     results_df.set_axis(
         pd.Index(
             results_df.index,
@@ -231,18 +212,17 @@ def _adversarial_radius(
     method: str,
     results: np.ndarray,
     device: str = 'cpu',
-    #use_preds: bool
 ) -> np.ndarray:
     """Evaluate change of class of samples under adversarial attack.
 
     :param model: the model to evaluate
     :param dataloader: the data
+    :param loss: loss function
     :param eps: attack power
     :param n_steps: number of steps
     :param method: attack type
     :param results: current results
-    :param use_preds: if True, change of class if tracked between adversarial sample class and predicted class; if False,
-        change of class is tracked between adversarial sample class and ground truth class
+    :param device: device type (cuda or cpu)
     :returns: indices of samples that changed class
     """
     y_true, y_adv, y_pred, _, _, _, _ = test_on_adv(
@@ -252,20 +232,10 @@ def _adversarial_radius(
         params={"eps": eps, "steps": n_steps, "alpha": eps},
         method=method,
         device=device,
-        #use_preds=use_preds
     )
     y_true = y_true.detach().cpu().numpy()
     y_adv = y_adv.detach().cpu().numpy()
     y_pred = y_pred.detach().cpu().numpy()
-
-#     y_true = (y_true>0.5).astype(float)
-#     y_pred = (y_pred>0.5).astype(float)
-#     y_adv = (y_adv>0.5).astype(float)
-
-#     if use_preds:
-#         update = np.flatnonzero(y_pred.flatten() != y_adv.flatten())
-#     else:
-#         update = np.flatnonzero(y_true.flatten() != y_adv.flatten())
 
     update = np.flatnonzero(y_pred != y_adv)
 
@@ -285,12 +255,12 @@ def adversarial_radius(
     step_v: float,
     method: str,
     device: str = 'cpu',
-    #use_preds: bool,
 ) -> np.ndarray:
     """Evaluate adversarial radius of samples.
 
     :param model: the model to evaluate
     :param dataloader: the data
+    :param loss: loss function
     :param num_samples: number of samples
     :param min_v: minimal attack power for 'fgsm' method, minimal number of steps for 'pgd' method
     :param max_v: maximal attack power for 'fgsm' method, maximal number of steps for 'pgd' method; if not given,
@@ -298,8 +268,7 @@ def adversarial_radius(
     :param step_v: multiplicative step in attack power for 'fgsm' method or additive step in number of steps
         for 'pgd' method
     :param method: attack type
-    :param use_preds: if True, change of class if tracked between adversarial sample class and predicted class; if False,
-        change of class is tracked between adversarial sample class and ground truth class
+    :param device: device type (cuda or cpu)
     :returns: np.ndarray with minimal attack eps that changes class
     """
     results = np.zeros(num_samples)
@@ -321,10 +290,7 @@ def adversarial_radius(
                 method,
                 results,
                 device=device,
-                #use_preds
             )
-#             print('update', update.shape)
-#             print('results', results.shape)
             if len(update) > 0:
                 results[update] = v
         results[results == 0] = np.inf
@@ -341,7 +307,6 @@ def adversarial_radius(
                 method,
                 results,
                 device=device,
-                #use_preds
             )
             if len(update) > 0:
                 results[update] = v
@@ -364,13 +329,13 @@ def get_adversarial_radii(
     step_v: float,
     method: str,
     device: str = 'cpu',
-    #use_preds: bool,
 ) -> Tuple[np.ndarray, np.ndarray]:
     """
 
     :param model: model to evaluate 
     :param preds: numpy array of ensemble predictions. Expects first dimension to represent members of ensemble
     :param dataloader: the data
+    :param loss: loss function
     :param num_samples: number of samples
     :param min_v: minimal attack power for 'fgsm' method, minimal number of steps for 'pgd' method
     :param max_v: maximal attack power for 'fgsm' method, maximal number of steps for 'pgd' method; if not given,
@@ -378,8 +343,7 @@ def get_adversarial_radii(
     :param step_v: multiplicative step in attack power for 'fgsm' method or additive step in number of steps
         for 'pgd' method
     :param method: attack type
-    :param use_preds: if True, change of class if tracked between adversarial sample class and predicted class; if False,
-        change of class is tracked between adversarial sample class and ground truth class
+    :param device: device type (cuda or cpu)
     :returns: np.ndarray with average predictions, np.ndarray with minimal attack eps that changes class
     """
     ave_preds = np.average(np.copy(preds), axis=0)
@@ -394,7 +358,6 @@ def get_adversarial_radii(
         step_v=step_v,
         method=method,
         device=device,
-        #use_preds=use_preds,
     )
 
     radii = [func(model)] #[func(m) for m in models]
@@ -407,15 +370,6 @@ def get_adversarial_radii(
             return np.mean(arr_1d[mask])
 
     return ave_preds, np.apply_along_axis(_finite_mean, 0, radii)
-
-
-
-
-
-
-
-
-
 
 
 def sort_data_by_metric(
@@ -469,10 +423,8 @@ def reject_and_eval(
     :return: list of scores calculated for each upper bound
     """
     scores = []
-    #predicted_labels = np.where(preds > 0.5, 1, 0)
 
     for upper_bound in upper_bounds:
-        #predicted_labels_below_thresh = predicted_labels[0:upper_bound]
         predicted_labels_below_thresh = preds[0:upper_bound]
         preds_below_thresh = preds[0:upper_bound]
         labels_below_thresh = labels[0:upper_bound]
