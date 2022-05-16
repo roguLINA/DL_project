@@ -87,7 +87,11 @@ def test_on_adv(
     true_targets = torch.tensor([], device=device)
 
     for x_ori, labels in loader:
+        labels = labels.type(torch.LongTensor)
+#         import matplotlib.pyplot as plt
         x_ori, labels = x_ori.to(device), labels.to(device)
+#         fig, ax = plt.subplots(nrows=1, ncols=2, figsize=(20,6))
+#         ax[0].imshow(np.transpose(x_ori[0].detach().cpu().numpy(),[1,2,0]))
         x_adv = torch.clone(x_ori)
         x_adv.requires_grad = True
 
@@ -100,6 +104,9 @@ def test_on_adv(
         loss_val.backward()
 
         x_adv.data = x_adv.data + params["eps"] * torch.sign(x_adv.grad.data)
+#         ax[1].imshow(np.transpose(x_adv[0].detach().cpu().numpy(),[1,2,0]))
+#         plt.show()
+#         print((x_adv == x_ori).sum(), x_adv.shape[0] * x_adv.shape[1] * x_adv.shape[2] * x_adv.shape[3])
 
         # perturbations
         if method == "fgsm":
@@ -463,3 +470,24 @@ def reject_by_metric(
 
     upper_indices = get_upper_bound_idx(preds.size, rejection_rates)
     return reject_and_eval(preds_sorted, labels_sorted, upper_indices, scoring_func)
+
+
+# -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+def get_entropy(p: np.ndarray) -> np.ndarray:
+    """Calculate entropy of a given 1d numpy array. Input values are clipped to [0, 1].
+    :param p: numpy array of numerics
+    :return: numpy array of entropy values
+    """
+    cp = np.clip(p, 1e-5, 1 - 1e-5)
+    entropy = -cp * np.log2(cp) - (1 - cp) * np.log2(1 - cp)
+
+    return entropy
+
+def get_ensemble_predictive_entropy(preds: np.ndarray) -> np.ndarray:
+    """Calculate predictive entropy of ensemble predictions.
+    :param preds: numpy array of ensemble predictions. Expects first dimension to represent members of ensemble
+    :return: numpy array of predictive entropy estimates
+    """
+    return preds, get_entropy(preds)
