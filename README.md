@@ -21,3 +21,4 @@ In particular, we provide an explanation of how adversarial radius can be used i
   - bagging-ensemble-experiments.ipynb
   - snapshot-ensemble-experiments.ipynb
   - one-model-experiments.ipynb
+ - *folder results* - contains all calculated metrics from 3 above mentioned notebooks with experiments and saved versions of comparison plots.
