@@ -14,9 +14,11 @@ In particular, we provide an explanation of how adversarial radius can be used i
  - uncertainty_baselines.py - functions for calculating baseline uncertainty measures on sungle model/ensemble
  - data.py - dataloading utils
  - model.py - training utils
+ 
 - *training for ensembles:*
  - bagging-ensemble-training.ipynb
  - snapshot-ensemble-training.ipynb
+ 
 - *uncertainty metrics estimation and their comparison:*
   - bagging-ensemble-experiments.ipynb
   - snapshot-ensemble-experiments.ipynb
