@@ -11,7 +11,7 @@ In particular, we provide an explanation of how adversarial radius can be used i
 - *folder utils*
   - attacks.py - basic functions for gradient attacks
   - adevrsarial_radius.py - functions for estimation of adversarial radii/ step radii on single model/ensemble
-  - uncertainty_baselines.py - functions for calculating baseline uncertainty measures on sungle model/ensemble
+  - uncertainty_baselines.py - functions for calculating baseline uncertainty measures on single model/ensemble
   - data.py - dataloading utils
   - model.py - training utils
 - *training for ensembles:*
