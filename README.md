@@ -9,16 +9,14 @@ In particular, we provide an explanation of how adversarial radius can be used i
 
 **The structure of repository is as follows**:
 - *folder utils*
- - attacks.py - basic functions for gradient attacks
- - adevrsarial_radius.py - functions for estimation of adversarial radii/ step radii on single model/ensemble
- - uncertainty_baselines.py - functions for calculating baseline uncertainty measures on sungle model/ensemble
- - data.py - dataloading utils
- - model.py - training utils
- 
+  - attacks.py - basic functions for gradient attacks
+  - adevrsarial_radius.py - functions for estimation of adversarial radii/ step radii on single model/ensemble
+  - uncertainty_baselines.py - functions for calculating baseline uncertainty measures on sungle model/ensemble
+  - data.py - dataloading utils
+  - model.py - training utils
 - *training for ensembles:*
- - bagging-ensemble-training.ipynb
- - snapshot-ensemble-training.ipynb
- 
+  - bagging-ensemble-training.ipynb
+  - snapshot-ensemble-training.ipynb
 - *uncertainty metrics estimation and their comparison:*
   - bagging-ensemble-experiments.ipynb
   - snapshot-ensemble-experiments.ipynb
